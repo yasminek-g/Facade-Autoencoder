@@ -9,8 +9,7 @@ This project implements a **Custom Masked Autoencoder (MAE)** from scratch for i
 1. [Overview](#overview)  
 2. [Project Structure](#project-structure)  
 3. [Features](#features)  
-5. [Results](#results)  
-5. [Acknowledgements](#acknowledgements)
+4. [Acknowledgements](#acknowledgements)
 
 ---
 
