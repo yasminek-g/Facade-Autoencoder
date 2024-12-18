@@ -13,10 +13,10 @@
 
 import os
 import numpy as np
-import torch
+
 from torchvision import transforms
 from torch.utils.data import Dataset
-import shutil
+
 from sklearn.model_selection import train_test_split
 
 
@@ -31,18 +31,27 @@ def build_dataset(is_train, args):
     Returns:
         Dataset: An instance of NumpyDataset.
     """
+    full_npy_dir = os.path.join(args.data_path, 'complete_npy_224')
+    
+    # Load all .npy image files
+    all_image_paths = sorted([
+        os.path.join(full_npy_dir, fname) for fname in os.listdir(full_npy_dir)
+        if fname.endswith('.npy')
+    ])
+    
+    assert len(all_image_paths) > 0, "No .npy image files found in the specified directory."
+    
+    # Split into train and val sets
+    train_paths, val_paths = train_test_split(all_image_paths, test_size=0.2, random_state=42)
+
     transform = build_transform(is_train, args)
-
     if is_train:
-        image_dir = os.path.join(args.data_path, '/home/kroknes/complete_processed_npy/train/images_npy')
-        mask_dir = os.path.join(args.data_path, '/home/kroknes/complete_processed_npy/train/masks_npy')
+        dataset = NumpyDataset(train_paths, transform=transform)
+        print(f"Dataset size: {len(dataset)} (training)")
     else:
-        image_dir = os.path.join(args.data_path, '/home/kroknes/complete_processed_npy/val/images_npy')
-        mask_dir = os.path.join(args.data_path, '/home/kroknes/complete_processed_npy/val/masks_npy')
-
-    dataset = NumpyDataset(image_dir=image_dir, mask_dir=mask_dir, transform=transform)
-
-    print(f"Dataset size: {len(dataset)} ({'training' if is_train else 'validation'})")
+        dataset = NumpyDataset(val_paths, transform=transform)
+        print(f"Dataset size: {len(dataset)} (validation)")
+    
     return dataset
 
 
@@ -60,97 +69,42 @@ def build_transform(is_train, args):
     mean = [0.485, 0.456, 0.406]  # ImageNet mean
     std = [0.229, 0.224, 0.225]   # ImageNet std
 
-    transform = transforms.Compose([
+    transform_list = [
+        transforms.ToPILImage(),
+        # transforms.Resize((224, 224)),
+        transforms.ToTensor(),
         transforms.Normalize(mean=mean, std=std)
-    ])
+    ]
+
+    transform = transforms.Compose(transform_list)
     return transform
 
 
 class NumpyDataset(Dataset):
     """
-    Custom dataset class for loading images and padding masks.
+    Custom dataset class for loading images from .npy files.
 
     Args:
-        image_dir (str): Directory containing image .npy files.
-        mask_dir (str): Directory containing mask .npy files.
+        image_paths (list): List of image file paths.
         transform (callable, optional): Transformations to apply to the images.
-        patch_size (int): Patch size for the MAE model.
     """
-    def __init__(self, image_dir, mask_dir, transform=None, patch_size=16):
-        self.image_paths = sorted([
-            os.path.join(image_dir, fname) for fname in os.listdir(image_dir)
-            if fname.endswith('resized_padded.npy')
-        ])
-        self.mask_paths = sorted([
-            os.path.join(mask_dir, fname) for fname in os.listdir(mask_dir)
-            if fname.endswith('mask.npy')
-        ])
-
-        assert len(self.image_paths) > 0, "No image files found in the specified directory."
-        assert len(self.mask_paths) > 0, "No mask files found in the specified directory."
-
-        self.image_paths, self.mask_paths = self._match_files(self.image_paths, self.mask_paths)
-        assert len(self.image_paths) > 0, "No matching image and mask files found."
-
+    def __init__(self, image_paths, transform=None):
+        self.image_paths = image_paths
         self.transform = transform
-        self.patch_size = patch_size
-
-    def _match_files(self, image_paths, mask_paths):
-        """
-        Matches image files with corresponding mask files.
-
-        Args:
-            image_paths (list): List of image file paths.
-            mask_paths (list): List of mask file paths.
-
-        Returns:
-            tuple: Matched image and mask file paths.
-        """
-        def extract_id(fname, pattern):
-            start = fname.find('1_') + 2
-            if pattern == 'image':
-                end = fname.find('__full_rgb__resized_padded')
-            elif pattern == 'mask':
-                end = fname.find('__full_rgb__mask')
-            return fname[start:end]
-
-        image_dict = {extract_id(os.path.basename(p), 'image'): p for p in image_paths}
-        mask_dict = {extract_id(os.path.basename(p), 'mask'): p for p in mask_paths}
-
-        common_ids = set(image_dict.keys()) & set(mask_dict.keys())
-        matched_image_paths = [image_dict[id_] for id_ in sorted(common_ids)]
-        matched_mask_paths = [mask_dict[id_] for id_ in sorted(common_ids)]
-
-        return matched_image_paths, matched_mask_paths
 
     def __len__(self):
         return len(self.image_paths)
 
     def __getitem__(self, idx):
-        """
-        Fetches a single sample from the dataset.
+        # Load image
+        image = np.load(self.image_paths[idx]).astype(np.float32) / 255.0  # [H, W, C]
 
-        Args:
-            idx (int): Index of the sample to fetch.
-
-        Returns:
-            tuple: Image tensor and informative mask tensor.
-        """
-        # Load image and mask
-        image = np.load(self.image_paths[idx]).astype(np.float32) / 255.0  # [H, W, C] scaled to [0, 1]
-        informative_mask = np.load(self.mask_paths[idx]).astype(np.float32)  # [H, W]
-
-        # Convert image to tensor and apply transformations
-        image_tensor = torch.from_numpy(image).float().permute(2, 0, 1)  # [C, H, W]
+        # Apply transform
+        # Since we're now using a transform that expects a PIL image, we need to be sure
+        # the transform pipeline includes a ToPILImage() step.
         if self.transform:
-            image_tensor = self.transform(image_tensor)
+            # image: numpy array (H, W, C)
+            # transform pipeline includes ToPILImage so it can handle numpy arrays with shape (H,W,C)
+            image = self.transform(image)  # will become a Tensor [C, H, W]
 
-        # Resize mask to match patch size
-        p = self.patch_size
-        num_patches = image_tensor.shape[1] // p
-        informative_mask_tensor = torch.from_numpy(informative_mask).unsqueeze(0).unsqueeze(0)  # [1, 1, H, W]
-        informative_mask_tensor = torch.nn.functional.interpolate(
-            informative_mask_tensor, size=(num_patches, num_patches), mode='nearest'
-        ).squeeze(0).squeeze(0).view(-1)  # [L]
-
-        return image_tensor, informative_mask_tensor
+        return image
