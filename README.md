@@ -1,17 +1,16 @@
 # Facade-Autoencoder
 
+This repository implements and extends Masked Autoencoders (MAE), an advanced self-supervised learning method for image reconstruction and representation learning, originally introduced in the paper "Masked Autoencoders Are Scalable Vision Learners" by He et al. (2022) to reconstruct Venician facades.
+
+We provide two implementations:
+
+-Custom MAE: A fully customizable implementation of the MAE architecture, designed to explore various model components, such as masking strategies (block-based masking), patch sizes, embedding dimensions, and loss functions (MSE + Perceptual Loss).
+
+-Pretrained MAE: Fine-tuning the official MAE model from Facebook AI Research on a specific dataset of architectural facades, using random masking.
 
 ## **Custom Masked Autoencoder for Image Reconstruction**
 
 This project implements a **Custom Masked Autoencoder (MAE)** from scratch for image reconstruction tasks. The model is tailored to reconstruct facade images with incomplete or missing regions, addressing specific challenges such as occlusion and data sparsity.
-
----
-
-## **Table of Contents**
-1. [Overview](#overview)  
-2. [Project Structure](#project-structure)  
-3. [Features](#features)  
-4. [Acknowledgements](#acknowledgements)
 
 ---
 
