@@ -14,7 +14,7 @@ if __name__ == '__main__':
     wandb.init(project="mae-reconstruction", config={
         "learning_rate": 3e-4,
         "batch_size": 16,
-        "mask_ratio": 0.54,
+        "mask_ratio": 0.5,
         "image_size": 224,
         "patch_size": 8,
         "total_epochs": 700
@@ -78,7 +78,7 @@ if __name__ == '__main__':
 
     # Initialize model
     model = MAE_ViT(image_size=224, patch_size=16, emb_dim=256, encoder_layer=12,
-                    encoder_head=4, decoder_layer=6, decoder_head=4, mask_ratio=0.51).to(device)
+                    encoder_head=4, decoder_layer=6, decoder_head=4, mask_ratio=0.5).to(device)
 
     # Loss functions
     masked_mse_loss_fn = MaskedMSELoss()
