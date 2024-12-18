@@ -45,13 +45,15 @@ class PatchShuffle(torch.nn.Module):
         - backward_indexes (torch.Tensor): Reverse mapping to reconstruct the full sequence.
         """
         T, B, C = patches.shape
-        remain_T = int(T * (1 - self.ratio))  # Number of patches to keep.
-
-        # Calculate block size based on T (total patches)
-        num_patches_per_side = int(T ** 0.5)
+        num_patches_per_side = int(T ** 0.5)  # Assume a square grid of patches
         assert T == num_patches_per_side ** 2, "Patches must form a square grid."
 
-        indexes = [self.block_indexes(num_patches_per_side, remain_T) for _ in range(B)]
+        # Calculate block size: the largest square block that roughly satisfies the masking ratio
+        block_size = int((T * self.ratio) ** 0.5)
+        block_size = max(1, min(block_size, num_patches_per_side))  # Ensure block size is valid
+
+        # Generate forward and backward indexes for each batch
+        indexes = [self.block_indexes(num_patches_per_side, block_size) for _ in range(B)]
         forward_indexes = torch.as_tensor(
             np.stack([i[0] for i in indexes], axis=-1), dtype=torch.long
         ).to(patches.device)
@@ -59,46 +61,43 @@ class PatchShuffle(torch.nn.Module):
             np.stack([i[1] for i in indexes], axis=-1), dtype=torch.long
         ).to(patches.device)
 
-        # Shuffle and mask patches
+        # Shuffle and mask patches: Keep only visible (unmasked) patches
         patches = take_indexes(patches, forward_indexes)
-        patches = patches[:remain_T]
 
         return patches, forward_indexes, backward_indexes
 
-    def block_indexes(self, num_patches_per_side, remain_T):
+    def block_indexes(self, num_patches_per_side, block_size):
         """
-        Generate forward and backward indexes for block masking.
+        Generate forward and backward indexes for a square block masking.
 
         Args:
         - num_patches_per_side (int): Number of patches per side of the grid.
-        - remain_T (int): Number of patches to keep.
+        - block_size (int): Size of the square block to mask.
 
         Returns:
-        - forward_indexes (np.ndarray): Indexes of kept patches after masking.
+        - forward_indexes (np.ndarray): Indexes of visible patches (unmasked).
         - backward_indexes (np.ndarray): Indexes for reconstructing the full sequence.
         """
-        grid_size = num_patches_per_side ** 2  # Total patches in the grid.
-        mask_T = grid_size - remain_T  # Number of patches to mask.
-        block_side = int(mask_T ** 0.5)  # Block size in terms of patches.
+        grid_size = num_patches_per_side ** 2  # Total patches
+        mask = np.zeros((num_patches_per_side, num_patches_per_side), dtype=np.float32)
 
-        # Randomly select the top-left corner of the block
-        max_i = num_patches_per_side - block_side
-        max_j = num_patches_per_side - block_side
+        # Randomly select top-left corner of the block
+        max_i = num_patches_per_side - block_size
+        max_j = num_patches_per_side - block_size
         i = np.random.randint(0, max_i + 1)
         j = np.random.randint(0, max_j + 1)
 
-        # Generate a 2D grid mask
-        mask = np.zeros((num_patches_per_side, num_patches_per_side), dtype=np.float32)
-        mask[i:i + block_side, j:j + block_side] = 1  # Mask the block.
+        # Mask the square block
+        mask[i:i + block_size, j:j + block_size] = 1  # Set masked regions to 1
 
-        # Flatten the mask
+        # Flatten the mask and calculate indexes
         mask = mask.flatten()
-
-        # Determine forward and backward indexes
-        forward_indexes = np.where(mask == 0)[0]  # Keep unmasked patches.
+        forward_indexes = np.where(mask == 0)[0]  # Indices of visible patches
         backward_indexes = np.argsort(np.concatenate((forward_indexes, np.where(mask == 1)[0])))
 
         return forward_indexes, backward_indexes
+
+
 
 
 # Encoder for Masked Autoencoders
