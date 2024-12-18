@@ -8,7 +8,7 @@ We provide two implementations:
 
 -Pretrained MAE: Fine-tuning the official MAE model from Facebook AI Research on a specific dataset of architectural facades.
 
-refer to each MAEs README for more details
+refer to each the Models individual READMEs for more details.
 
 ## References
 
