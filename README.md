@@ -8,7 +8,7 @@ We provide two implementations:
 
 -Pretrained MAE: Fine-tuning the official MAE model from Facebook AI Research on a specific dataset of architectural facades, using random masking.
 
-## **Custom Masked Autoencoder for Image Reconstruction**
+## **Custom Masked Autoencoder**
 
 This project implements a **Custom Masked Autoencoder (MAE)** from scratch for image reconstruction tasks. The model is tailored to reconstruct facade images with incomplete or missing regions, addressing specific challenges such as occlusion and data sparsity.
 
