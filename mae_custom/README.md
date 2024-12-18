@@ -63,13 +63,6 @@ project/
 
 ---
 
-## **Results**
-
-The custom MAE struggled to produce sharp reconstructions due to the small dataset size.
-Incorporating Perceptual Loss improved results, revealing more recognizable patterns like windows and structural details.
-
----
-
 ## **Acknowledgements**
 This project is inspired by:
 
