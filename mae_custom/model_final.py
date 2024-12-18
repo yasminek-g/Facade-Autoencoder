@@ -212,28 +212,7 @@ class MAE_ViT(torch.nn.Module):
         predicted_img, mask = self.decoder(features,  backward_indexes)
         return predicted_img, mask
 
-# losses used during training
-class MaskedMSELoss(nn.Module):
-    def __init__(self):
 
-        super(MaskedMSELoss, self).__init__()
-
-    def forward(self, predicted, target, mask):
-        """
-        Compute MSE loss on masked patches only.
-
-        Parameters:
-        - predicted: Reconstructed image tensor (B, C, H, W)
-        - target: Original image tensor (B, C, H, W)
-        - mask: Binary mask indicating masked regions
-
-        Returns:
-        - loss: Mean squared error loss over masked regions
-        """
-        masked_loss = ((predicted - target) ** 2 * mask).sum()
-        num_masked_patches = mask.sum()
-        loss = masked_loss / (num_masked_patches + 1e-8)  # Avoid division by zero
-        return loss
 
 class PerceptualLoss(nn.Module):
     def __init__(self, layers=[2, 7, 12], requires_grad=False, device='cuda'):

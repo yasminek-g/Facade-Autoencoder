@@ -6,7 +6,7 @@ from tqdm import tqdm
 import wandb
 import math
 from model_final import *
-from utils import setup_seed
+from utils import *
 
 # Main script
 if __name__ == '__main__':
