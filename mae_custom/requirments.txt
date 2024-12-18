@@ -1,0 +1,12 @@
+torch==2.0.0          # PyTorch for deep learning
+torchvision==0.15.0   # Computer vision utilities (transforms, datasets)
+pytorch-msssim==0.2.1 # For SSIM computation
+timm==0.6.12          # PyTorch Image Models (ViT and MAE backbone)
+numpy==1.24.3         # NumPy for data handling
+matplotlib==3.7.1     # Visualization library
+Pillow==9.4.0         # Image processing
+wandb==0.15.5         # Weights & Biases for experiment tracking
+einops==0.6.0         # Rearranging and transforming tensors
+argparse==1.4.0       # Argument parsing
+tqdm==4.65.0          # Progress bar for loops
+scipy==1.10.1         # Scientific computations
