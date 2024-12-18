@@ -137,9 +137,7 @@ The model combines two loss functions for reconstruction:
 
 The combined loss function is:  
 
-\[
-\mathcal{L} = 0.6 \cdot \text{MSE Loss} + 0.4 \cdot \text{Perceptual Loss}
-\]
+`L = 0.6 ⋅ MSE Loss + 0.4 ⋅ Perceptual Loss`
 
 ---
 
