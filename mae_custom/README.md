@@ -32,8 +32,7 @@ The goal is to reconstruct high-quality images from masked inputs and analyze th
 project/
 │
 ├── data/                       # Directory for datasets
-│   ├── complete_npy/           # .npy images dataset
-│   └── sample_images/          # Original images (optional)
+│   └── complete_npy/           # .npy images dataset
 │
 ├── model_final.py              # Model implementation (Custom MAE)
 ├── utils.py                    # Utilities (loss functions, visualization)
