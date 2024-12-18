@@ -1,21 +1,20 @@
 # Facade-Autoencoder
 
+This repository implements and extends Masked Autoencoders (MAE), an advanced self-supervised learning method for image reconstruction and representation learning, originally introduced in the paper "Masked Autoencoders Are Scalable Vision Learners" by He et al. (2022) to reconstruct Venician facades.
 
-## **Custom Masked Autoencoder for Image Reconstruction**
+We provide two implementations:
+
+-Custom MAE: A fully customizable implementation of the MAE architecture, designed to explore various model components, such as masking strategies (block-based masking), patch sizes, embedding dimensions, and loss functions (MSE + Perceptual Loss).
+
+-Pretrained MAE: Fine-tuning the official MAE model from Facebook AI Research on a specific dataset of architectural facades.
+
+## **Custom Masked Autoencoder**
 
 This project implements a **Custom Masked Autoencoder (MAE)** from scratch for image reconstruction tasks. The model is tailored to reconstruct facade images with incomplete or missing regions, addressing specific challenges such as occlusion and data sparsity.
 
 ---
 
-## **Table of Contents**
-1. [Overview](#overview)  
-2. [Project Structure](#project-structure)  
-3. [Features](#features)  
-4. [Acknowledgements](#acknowledgements)
-
----
-
-## **Overview**
+### **Overview**
 
 This project explores training a custom **Masked Autoencoder (MAE)** for facade image reconstruction. Key highlights include:
 - Training the MAE from scratch with **Masked MSE Loss** and **Perceptual Loss**.
@@ -27,7 +26,7 @@ The goal is to reconstruct high-quality images from masked inputs and analyze th
 
 ---
 
-## **Project Structure**
+### **Project Structure**
 
 ```plaintext
 project/
@@ -46,7 +45,7 @@ project/
 
 ---
 
-## **Features**
+### **Features**
 
 1. **Custom Masked Autoencoder (MAE)**:
    - Implemented with an encoder-decoder architecture.
@@ -63,9 +62,14 @@ project/
    - Visualization of training progress, losses, and image reconstructions using **Weights & Biases (W&B)**.
 
 ---
+## **Pre-trained MAE**
+
+...
 
 ## **References**
 
 This project builds upon the following repositories:
 
 - [MAE by IcarusWizard](https://github.com/IcarusWizard/MAE): A custom implementation of Masked Autoencoders (MAE) for image reconstruction tasks.
+- [Original MAE by Facebook AI Research](https://github.com/facebookresearch/mae): The official implementation of the Masked Autoencoder architecture described in the paper *"Masked Autoencoders Are Scalable Vision Learners"*.
+
