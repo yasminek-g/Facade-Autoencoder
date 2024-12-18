@@ -236,13 +236,13 @@ def main(args):
             # Start: block=0.5, random=0.25 (sum=0.75)
             # End:   block=0.75, random=0.0 (sum=0.75)
 
-            start_block_ratio = 0.5
-            end_block_ratio = 0.75
+            start_block_ratio = 0.4
+            end_block_ratio = 0.6
             current_block_ratio = start_block_ratio + progress * (end_block_ratio - start_block_ratio)
             # This grows from 0.5 to 0.75
 
-            start_random_ratio = 0.25
-            end_random_ratio = 0.0
+            start_random_ratio = 0.35
+            end_random_ratio = 0.15
             current_random_ratio = start_random_ratio + (1 - progress) * (end_random_ratio - start_random_ratio)
             # This decreases from 0.25 to 0.0 as progress goes to 1
 
@@ -252,7 +252,7 @@ def main(args):
 
             current_mask_mode = 'combined'
             current_flipped = True
-            current_random_offset = False
+            current_random_offset = True
 
         # Training Phase
         train_stats = train_one_epoch(
