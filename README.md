@@ -68,3 +68,5 @@ project/
 This project builds upon the following repositories:
 
 - [MAE by IcarusWizard](https://github.com/IcarusWizard/MAE): A custom implementation of Masked Autoencoders (MAE) for image reconstruction tasks.
+- [Original MAE by Facebook AI Research](https://github.com/facebookresearch/mae): The official implementation of the Masked Autoencoder architecture described in the paper *"Masked Autoencoders Are Scalable Vision Learners"*.
+
