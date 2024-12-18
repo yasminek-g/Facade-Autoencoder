@@ -1,0 +1,33 @@
+Job directory: /Users/oscargoudet/Desktop/Facade-Autoencoder/mae_finetune
+Arguments:
+{
+    "batch_size": 16,
+    "epochs": 50,
+    "input_size": 224,
+    "mask_ratio": 0.75,
+    "lr": 0.001,
+    "weight_decay": 0.05,
+    "finetune": "/Users/oscargoudet/Desktop/Facade-Autoencoder/chekpoint/mae_pretrain_vit_huge.pth",
+    "output_dir": "./output_dir",
+    "log_dir": "./output_dir",
+    "data_path": "/Users/oscargoudet/Desktop/complete_processed_npy",
+    "device": "mps",
+    "seed": 0,
+    "num_workers": 8,
+    "pin_mem": false,
+    "resume": "",
+    "start_epoch": 0,
+    "eval": false
+}
+Traceback (most recent call last):
+  File "/Users/oscargoudet/Desktop/Facade-Autoencoder/mae_finetune/main_finetune.py", line 436, in <module>
+    main(args)
+  File "/Users/oscargoudet/Desktop/Facade-Autoencoder/mae_finetune/main_finetune.py", line 350, in main
+    torch.backends.mps.manual_seed_all(seed)
+AttributeError: module 'torch.backends.mps' has no attribute 'manual_seed_all'
+Traceback (most recent call last):
+  File "/Users/oscargoudet/Desktop/Facade-Autoencoder/mae_finetune/main_finetune.py", line 436, in <module>
+    main(args)
+  File "/Users/oscargoudet/Desktop/Facade-Autoencoder/mae_finetune/main_finetune.py", line 350, in main
+    torch.backends.mps.manual_seed_all(seed)
+AttributeError: module 'torch.backends.mps' has no attribute 'manual_seed_all'

@@ -1,0 +1,23 @@
+2024-12-11 15:21:48,464 INFO    MainThread:33072 [wandb_setup.py:_flush():68] Current SDK version is 0.19.0
+2024-12-11 15:21:48,465 INFO    MainThread:33072 [wandb_setup.py:_flush():68] Configure stats pid to 33072
+2024-12-11 15:21:48,465 INFO    MainThread:33072 [wandb_setup.py:_flush():68] Loading settings from /Users/oscargoudet/.config/wandb/settings
+2024-12-11 15:21:48,465 INFO    MainThread:33072 [wandb_setup.py:_flush():68] Loading settings from /Users/oscargoudet/Desktop/Facade-Autoencoder/mae_finetune/wandb/settings
+2024-12-11 15:21:48,465 INFO    MainThread:33072 [wandb_setup.py:_flush():68] Loading settings from environment variables
+2024-12-11 15:21:48,465 INFO    MainThread:33072 [wandb_init.py:_log_setup():528] Logging user logs to /Users/oscargoudet/Desktop/Facade-Autoencoder/mae_finetune/wandb/run-20241211_152148-qys8wf8d/logs/debug.log
+2024-12-11 15:21:48,465 INFO    MainThread:33072 [wandb_init.py:_log_setup():529] Logging internal logs to /Users/oscargoudet/Desktop/Facade-Autoencoder/mae_finetune/wandb/run-20241211_152148-qys8wf8d/logs/debug-internal.log
+2024-12-11 15:21:48,465 INFO    MainThread:33072 [wandb_init.py:init():639] calling init triggers
+2024-12-11 15:21:48,465 INFO    MainThread:33072 [wandb_init.py:init():645] wandb.init called with sweep_config: {}
+config: {'batch_size': 16, 'epochs': 50, 'input_size': 224, 'mask_ratio': 0.75, 'lr': 0.001, 'weight_decay': 0.05, 'finetune': '/Users/oscargoudet/Desktop/Facade-Autoencoder/chekpoint/mae_pretrain_vit_huge.pth', 'output_dir': './output_dir', 'log_dir': './output_dir', 'data_path': '/Users/oscargoudet/Desktop/complete_processed_npy', 'device': 'cuda', 'seed': 0, 'num_workers': 8, 'pin_mem': False, 'resume': '', 'start_epoch': 0, 'eval': False}
+2024-12-11 15:21:48,465 INFO    MainThread:33072 [wandb_init.py:init():688] starting backend
+2024-12-11 15:21:48,465 INFO    MainThread:33072 [wandb_init.py:init():692] sending inform_init request
+2024-12-11 15:21:48,499 INFO    MainThread:33072 [backend.py:_multiprocessing_setup():104] multiprocessing start_methods=spawn,fork,forkserver, using: spawn
+2024-12-11 15:21:48,499 INFO    MainThread:33072 [wandb_init.py:init():705] backend started and connected
+2024-12-11 15:21:48,504 INFO    MainThread:33072 [wandb_init.py:init():798] updated telemetry
+2024-12-11 15:21:48,526 INFO    MainThread:33072 [wandb_init.py:init():830] communicating run to backend with 90.0 second timeout
+2024-12-11 15:21:48,906 INFO    MainThread:33072 [wandb_init.py:init():882] starting run threads in backend
+2024-12-11 15:21:49,027 INFO    MainThread:33072 [wandb_run.py:_console_start():2443] atexit reg
+2024-12-11 15:21:49,027 INFO    MainThread:33072 [wandb_run.py:_redirect():2293] redirect: wrap_raw
+2024-12-11 15:21:49,028 INFO    MainThread:33072 [wandb_run.py:_redirect():2358] Wrapping output streams.
+2024-12-11 15:21:49,028 INFO    MainThread:33072 [wandb_run.py:_redirect():2383] Redirects installed.
+2024-12-11 15:21:49,029 INFO    MainThread:33072 [wandb_init.py:init():925] run started, returning control to user process
+2024-12-11 15:21:49,031 WARNING MsgRouterThr:33072 [router.py:message_loop():75] message_loop has been closed

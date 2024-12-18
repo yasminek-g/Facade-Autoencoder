@@ -1,0 +1,20 @@
+Traceback (most recent call last):
+  File "/Users/oscargoudet/Desktop/Facade-Autoencoder/mae_finetune/main_finetune.py", line 268, in <module>
+    main(args)
+  File "/Users/oscargoudet/Desktop/Facade-Autoencoder/mae_finetune/main_finetune.py", line 108, in main
+    torch.cuda.set_per_process_memory_fraction(0.8, device=0)  # Limit GPU usage to 80% of available memory
+  File "/opt/anaconda3/envs/FDH/lib/python3.10/site-packages/torch/cuda/memory.py", line 168, in set_per_process_memory_fraction
+    _lazy_init()
+  File "/opt/anaconda3/envs/FDH/lib/python3.10/site-packages/torch/cuda/__init__.py", line 310, in _lazy_init
+    raise AssertionError("Torch not compiled with CUDA enabled")
+AssertionError: Torch not compiled with CUDA enabled
+Traceback (most recent call last):
+  File "/Users/oscargoudet/Desktop/Facade-Autoencoder/mae_finetune/main_finetune.py", line 268, in <module>
+    main(args)
+  File "/Users/oscargoudet/Desktop/Facade-Autoencoder/mae_finetune/main_finetune.py", line 108, in main
+    torch.cuda.set_per_process_memory_fraction(0.8, device=0)  # Limit GPU usage to 80% of available memory
+  File "/opt/anaconda3/envs/FDH/lib/python3.10/site-packages/torch/cuda/memory.py", line 168, in set_per_process_memory_fraction
+    _lazy_init()
+  File "/opt/anaconda3/envs/FDH/lib/python3.10/site-packages/torch/cuda/__init__.py", line 310, in _lazy_init
+    raise AssertionError("Torch not compiled with CUDA enabled")
+AssertionError: Torch not compiled with CUDA enabled

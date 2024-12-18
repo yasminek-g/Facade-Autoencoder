@@ -1,0 +1,17 @@
+{
+  "os": "macOS-14.6.1-arm64-arm-64bit",
+  "python": "CPython 3.10.15",
+  "startedAt": "2024-12-11T14:21:48.499908Z",
+  "program": "/Users/oscargoudet/Desktop/Facade-Autoencoder/mae_finetune/main_finetune.py",
+  "codePath": "mae_finetune/main_finetune.py",
+  "git": {
+    "remote": "https://github.com/Ogoud/Facade-Autoencoder.git",
+    "commit": "ad14025f094819aed65aa420e81112c777bf66f5"
+  },
+  "email": "oscar.goudet@gmail.com",
+  "root": "/Users/oscargoudet/Desktop/Facade-Autoencoder/mae_finetune",
+  "host": "tsf-460-wpa-2-043.epfl.ch",
+  "username": "oscargoudet",
+  "executable": "/opt/anaconda3/envs/FDH/bin/python",
+  "codePathLocal": "main_finetune.py"
+}
