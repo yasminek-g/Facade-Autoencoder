@@ -21,7 +21,38 @@ from util.pos_embed import get_2d_sincos_pos_embed
 
 
 class MaskedAutoencoderViT(nn.Module):
-    """Masked Autoencoder with VisionTransformer backbone."""
+    """
+    Masked Autoencoder with a Vision Transformer backbone.
+
+    This MAE class allows:
+    - Random masking of patches
+    - Block masking: masking a contiguous vertical or square block of patches
+    - Combined masking: a large block plus random patches outside that block.
+
+    It includes:
+    - A ViT encoder (with optional pretrained/frozen weights)
+    - A decoder that reconstructs masked patches
+    - Methods for different masking strategies
+
+    Recommended Usage for Stability:
+    - Start training with random masking only (warmup epochs).
+    - Gradually increase block_ratio and decrease random_ratio after warmup.
+    - This approach stabilizes the loss and avoids sudden spikes.
+
+    Args:
+        img_size (int): Input image size (e.g., 224).
+        patch_size (int): Patch size for splitting the image into patches.
+        in_chans (int): Number of input channels.
+        embed_dim (int): Embedding dimension.
+        depth (int): Number of encoder blocks.
+        num_heads (int): Number of attention heads in the encoder.
+        decoder_embed_dim (int): Embedding dimension for the decoder.
+        decoder_depth (int): Number of decoder blocks.
+        decoder_num_heads (int): Number of attention heads in the decoder.
+        mlp_ratio (float): MLP ratio in Transformer blocks.
+        norm_layer: Normalization layer type.
+        norm_pix_loss (bool): If True, use normalized pixel loss.
+    """
     def __init__(self, img_size=224, patch_size=16, in_chans=3,
                  embed_dim=1024, depth=24, num_heads=16,
                  decoder_embed_dim=512, decoder_depth=8, decoder_num_heads=16,
@@ -33,15 +64,16 @@ class MaskedAutoencoderViT(nn.Module):
         num_patches = self.patch_embed.num_patches
 
         self.cls_token = nn.Parameter(torch.zeros(1, 1, embed_dim))
+        # pos_embed: positional embedding for all patches + cls token
         self.pos_embed = nn.Parameter(torch.zeros(1, num_patches + 1, embed_dim), requires_grad=False)
 
-        # Pretrained encoder blocks (to be frozen)
+        # Pretrained/frozen encoder blocks
         self.blocks = nn.ModuleList([
             Block(embed_dim, num_heads, mlp_ratio, qkv_bias=True, norm_layer=norm_layer)
             for _ in range(depth)
         ])
 
-        # New trainable blocks
+        # Additional trainable blocks appended after the frozen encoder
         self.new_blocks = nn.ModuleList([
             Block(embed_dim, num_heads, mlp_ratio, qkv_bias=True, norm_layer=norm_layer)
             for _ in range(2)
@@ -59,13 +91,17 @@ class MaskedAutoencoderViT(nn.Module):
             for _ in range(decoder_depth)
         ])
         self.decoder_norm = norm_layer(decoder_embed_dim)
+        # decoder_pred projects back to pixel space
         self.decoder_pred = nn.Linear(decoder_embed_dim, patch_size**2 * in_chans)
 
         self.norm_pix_loss = norm_pix_loss
         self.initialize_weights()
 
+
     def no_weight_decay(self):
+        """No weight decay for positional embeddings and mask tokens."""
         return {'pos_embed', 'cls_token', 'mask_token'}
+
 
     def initialize_weights(self):
         """Initialize model weights and positional embeddings."""
@@ -80,7 +116,9 @@ class MaskedAutoencoderViT(nn.Module):
 
         self.apply(self._init_weights)
 
+
     def _init_weights(self, m):
+        """Xavier initialization for Linear and constant init for LayerNorm."""
         if isinstance(m, nn.Linear):
             torch.nn.init.xavier_uniform_(m.weight)
             if m.bias is not None:
@@ -89,16 +127,23 @@ class MaskedAutoencoderViT(nn.Module):
             nn.init.constant_(m.weight, 1.0)
             nn.init.constant_(m.bias, 0)
 
+
     def freeze_pretrained_weights(self):
-        """Freeze the weights of the pretrained encoder."""
+        """
+        Freeze the weights of the pretrained encoder blocks.
+        This is useful if you loaded pretrained MAE weights and only want to train added layers.
+        """        
         for param in self.blocks.parameters():
             param.requires_grad = False
         print("Pretrained encoder blocks have been frozen.")
 
+
     def patchify(self, imgs):
         """
+        Convert images into patch sequences.
+
         imgs: (N, 3, H, W)
-        x: (N, L, patch_size**2 *3)
+        returns x: (N, L, patch_size**2 * 3)
         """
         p = self.patch_embed.patch_size[0]
         assert imgs.shape[2] == imgs.shape[3] and imgs.shape[2] % p == 0
@@ -109,10 +154,13 @@ class MaskedAutoencoderViT(nn.Module):
         x = x.reshape(shape=(imgs.shape[0], h * w, p**2 * 3))
         return x
 
+
     def unpatchify(self, x):
         """
+        Reconstruct images from patch sequences.
+
         x: (N, L, patch_size**2 *3)
-        imgs: (N, 3, H, W)
+        returns imgs: (N, 3, H, W)
         """
         p = self.patch_embed.patch_size[0]
         h = w = int(x.shape[1]**.5)
@@ -124,21 +172,18 @@ class MaskedAutoencoderViT(nn.Module):
         return imgs
     
 
-###############################################################################
-    # 1. Random Masking (standard MAE) - reintroduce the commented-out code below #
-    ###############################################################################
     def random_masking(self, x, mask_ratio=0.75):
         """
-        Perform random masking by shuffling patches and then selecting the first subset as "kept".
+        Perform random masking by shuffling patches and keeping only a certain percentage.
 
         Args:
-            x: [N, L, D] Input embeddings.
+            x: [N, L, D]
             mask_ratio: fraction of patches to mask.
 
         Returns:
-            x_masked: masked input
-            mask: binary mask (1 for masked, 0 for unmasked)
-            ids_restore: indices to restore order if needed
+            x_masked: masked input features
+            mask: binary mask (1=masked, 0=unmasked)
+            ids_restore: restore indices to original order
         """
         N, L, D = x.shape
         len_keep = int(L * (1 - mask_ratio))
@@ -162,124 +207,44 @@ class MaskedAutoencoderViT(nn.Module):
 
         return x_masked, mask, ids_restore
 
-    #####################################################################
-    # 2. Block Masking w/ optional random_offset for dynamic location   #
-    #####################################################################
+
     def block_masking(self, x, block_ratio=0.5, flipped=True, random_offset=False):
         """
-        Masks a contiguous vertical block of patches. 
-        If random_offset=True, the block is placed at a random vertical row offset 
-        instead of always the bottom or top.
-        
+        Masks a contiguous vertical block of patches (full columns wide, block_rows high).
+        If random_offset=True, vertical start row is chosen randomly.
+
         Args:
             x: [N, L, D]
-            block_ratio: fraction of patch rows to mask
-            flipped: if True, row=0 is visually the bottom row
-            random_offset: if True, we randomize the row offset each forward pass.
+            block_ratio: fraction of patch rows to mask (vertical block)
+            flipped: if True, row=0 is bottom visually; else top is row=0.
+            random_offset: if True, place block at a random vertical offset.
 
-        Returns: x_masked, mask, ids_restore
+        Returns:
+            x_masked, mask, ids_restore
         """
         N, L, D = x.shape
         h = w = int(L**0.5)
-        assert h * w == L, "Mismatch in L vs h*w"
-
         block_rows = int(h * block_ratio)
 
-        mask = torch.zeros(N, L, device=x.device)  # 0=unmasked, 1=masked
-
+        mask = torch.zeros(N, L, device=x.device)
         if random_offset:
-            # choose a random vertical offset for the block
             row_offset = torch.randint(low=0, high=h - block_rows + 1, size=(1,)).item()
-            # ignore 'flipped' logic if random_offset is True
             masked_row_start = row_offset
-            masked_row_end   = row_offset + block_rows
+            masked_row_end = row_offset + block_rows
         else:
             if flipped:
-                # block from row=0 up to row=block_rows
                 masked_row_start = 0
-                masked_row_end   = block_rows
+                masked_row_end = block_rows
             else:
-                # block from row=(h - block_rows)..h
                 masked_row_start = h - block_rows
-                masked_row_end   = h
+                masked_row_end = h
 
         for row in range(masked_row_start, masked_row_end):
             start_idx = row * w
-            end_idx   = (row + 1) * w
-            mask[:, start_idx:end_idx] = 1  # masked
-
-        # Build a deterministic ordering: unmasked first, masked last
-        unmasked_indices = []
-        masked_indices = []
-        for row in range(h):
-            for col in range(w):
-                patch_idx = row*w + col
-                if mask[0, patch_idx] == 0:  
-                    unmasked_indices.append(patch_idx)
-                else:
-                    masked_indices.append(patch_idx)
-
-        ordering = torch.tensor(unmasked_indices + masked_indices, device=x.device)  # shape [L]
-        ids_shuffle = ordering.unsqueeze(0).repeat(N,1)
-        ids_restore = torch.argsort(ids_shuffle, dim=1)
-
-        len_keep = len(unmasked_indices)
-        x_masked = torch.gather(x, dim=1, 
-            index=ids_shuffle[:, :len_keep].unsqueeze(-1).expand(-1, -1, D)
-        )
-
-        # reorder mask to original indexing
-        mask = torch.gather(mask, dim=1, index=ids_restore)
-        return x_masked, mask, ids_restore
-    
-    def block_masking_bbox_bottom(self, x, block_ratio=0.3, horizontal_random_offset=True, flipped=True):
-        """
-        Masks one single large square block at the bottom of the patch grid.
-        block_ratio: fraction of the entire image to be masked by the block (0<block_ratio<1).
-        flipped: if True, row=0 is bottom visually; if False, row=0 is top visually.
-
-        Steps:
-        1) Compute block_size = sqrt(block_ratio * L), round to int.
-        2) If flipped=True, block starts at row=0; if flipped=False, block starts at row=h - block_size.
-        3) For horizontal placement:
-            If horizontal_random_offset=True, pick j randomly from [0..w-block_size],
-            else j=0.
-        4) Fill mask with ones inside that block, zeros elsewhere.
-        """
-        N, L, D = x.shape
-        h = w = int(L**0.5)
-        assert h*w == L, "Mismatch in L vs h*w"
-        
-        # Compute block_size from block_ratio:
-        block_area = int(block_ratio * L)
-        block_size = int(block_area**0.5)
-        # Clamp block_size so it doesn't exceed h or w
-        block_size = min(block_size, h, w)
-
-        if flipped:
-            # row=0 is bottom, so anchor block at bottom means block at row_start=0
-            row_start = 0
-            row_end = block_size
-        else:
-            # row=0 is top, anchor at bottom means start from h-block_size
-            row_start = h - block_size
-            row_end = h
-
-        if horizontal_random_offset:
-            col_start = torch.randint(low=0, high=w - block_size + 1, size=(1,)).item()
-        else:
-            col_start = 0
-        col_end = col_start + block_size
-
-        # Create mask
-        mask = torch.zeros(N, L, device=x.device)
-        # Fill the block region:
-        for row in range(row_start, row_end):
-            start_idx = row * w + col_start
-            end_idx = row * w + col_end
+            end_idx = (row + 1) * w
             mask[:, start_idx:end_idx] = 1
 
-        # Now rearrange patches so that unmasked come first
+        # Reorder so unmasked come first
         unmasked_indices = []
         masked_indices = []
         for row in range(h):
@@ -293,47 +258,120 @@ class MaskedAutoencoderViT(nn.Module):
         ordering = torch.tensor(unmasked_indices + masked_indices, device=x.device)
         ids_shuffle = ordering.unsqueeze(0).repeat(N,1)
         ids_restore = torch.argsort(ids_shuffle, dim=1)
+        len_keep = len(unmasked_indices)
+        x_masked = torch.gather(x, dim=1, index=ids_shuffle[:, :len_keep].unsqueeze(-1).expand(-1, -1, D))
+        mask = torch.gather(mask, dim=1, index=ids_restore)
+        return x_masked, mask, ids_restore
+    
 
+    def block_masking_bbox_bottom(self, x, block_ratio=0.3, horizontal_random_offset=True, flipped=True):
+        """
+        Masks a single large square block at the bottom.
+
+        block_ratio: fraction of entire image to mask as a square block.
+        We compute block_size = sqrt(block_ratio * L) and form a contiguous square block.
+
+        If flipped=True, row=0 is bottom, block starts at bottom row.
+        If flipped=False, anchor at the actual bottom (row=h-block_size).
+
+        horizontal_random_offset: if True, block shifts horizontally at random.
+
+        Returns x_masked, mask, ids_restore
+        """
+        N, L, D = x.shape
+        h = w = int(L**0.5)
+
+        # Determine block size from block_ratio
+        block_area = int(block_ratio * L)
+        block_size = int(block_area**0.5)
+        block_size = min(block_size, h, w)
+
+        if flipped:
+            row_start, row_end = 0, block_size
+        else:
+            row_start, row_end = h - block_size, h
+
+        if horizontal_random_offset:
+            col_start = torch.randint(low=0, high=w - block_size + 1, size=(1,)).item()
+        else:
+            col_start = 0
+        col_end = col_start + block_size
+
+        mask = torch.zeros(N, L, device=x.device)
+        # Fill the block area
+        for row in range(row_start, row_end):
+            start_idx = row * w + col_start
+            end_idx = row * w + col_end
+            mask[:, start_idx:end_idx] = 1
+
+        # Reorder patches (unmasked first)
+        unmasked_indices = []
+        masked_indices = []
+        for row in range(h):
+            for col in range(w):
+                idx = row*w + col
+                if mask[0, idx] == 0:
+                    unmasked_indices.append(idx)
+                else:
+                    masked_indices.append(idx)
+
+        ordering = torch.tensor(unmasked_indices + masked_indices, device=x.device)
+        ids_shuffle = ordering.unsqueeze(0).repeat(N,1)
+        ids_restore = torch.argsort(ids_shuffle, dim=1)
         len_keep = len(unmasked_indices)
         x_masked = torch.gather(x, dim=1, index=ids_shuffle[:, :len_keep].unsqueeze(-1).expand(-1, -1, D))
         mask = torch.gather(mask, dim=1, index=ids_restore)
         return x_masked, mask, ids_restore
 
 
-    #####################################################################
-    # 3. Combined Masking: random patch masking + block chunk masking   #
-    #####################################################################
     def combined_masking(self, x, block_ratio=0.3, random_ratio=0.45, flipped=True, horizontal_random_offset=True, random_offset=False):
         """
-        Combined masking:
-        1) One big block at the bottom masking `block_ratio * L` patches.
-        2) Random masking `random_ratio * L` patches from the remainder.
+        Combined masking: One big block + random patches outside the block.
 
-        No overlap: block first, then random from unmasked remainder.
+        Steps:
+        1) Mask a large square block (block_ratio * L patches).
+        2) From the remaining unmasked patches, randomly mask random_ratio * L patches.
+        No overlap between block and random masked areas.
 
-        block_ratio + random_ratio <= 1.0
+        Ensure block_ratio + random_ratio <= 1.0 for a stable setup.
+
+        For stability and decreasing loss:
+        - Start training with random only (block_ratio=0, random_ratio=0.75).
+        - Gradually increase block_ratio and decrease random_ratio during training epochs.
+        - This progressive approach avoids sudden spikes in loss.
+
+        Args:
+            x: [N, L, D]
+            block_ratio: fraction of entire image for block.
+            random_ratio: fraction of entire image for random.
+            flipped (bool): If True, row=0 is bottom visually.
+            horizontal_random_offset (bool): If True, random horizontal offset for block.
+            random_offset (bool): currently not used in this version for vertical offset.
+
+        Returns:
+            final_x_masked, combined_mask, final_ids_restore
         """
         N, L, D = x.shape
         total_patches = L
 
-        # Apply block masking
+        # Block masking first
         x_block_masked, mask_block, ids_restore_block = self.block_masking_bbox_bottom(
             x, block_ratio=block_ratio, horizontal_random_offset=horizontal_random_offset, flipped=flipped
         )
 
         N, L_block, D = x_block_masked.shape
         if L_block == 0:
-            # All masked by block
+            # Entire image masked by block
             return x_block_masked, mask_block, ids_restore_block
 
-        num_to_mask_random = int(random_ratio * total_patches)
         if block_ratio + random_ratio > 1.0:
-            raise ValueError("block_ratio + random_ratio should not exceed 1.0")
+            raise ValueError("block_ratio + random_ratio should not exceed 1.0 total masking.")
 
+        num_to_mask_random = int(random_ratio * total_patches)
         if num_to_mask_random > L_block:
-            raise ValueError(f"Not enough unmasked patches left ({L_block}) to mask {num_to_mask_random} randomly.")
+            raise ValueError(f"Not enough unmasked patches ({L_block}) to mask {num_to_mask_random} randomly.")
 
-        # Randomly select num_to_mask_random patches from L_block
+        # Randomly mask num_to_mask_random from L_block unmasked patches
         noise = torch.rand(N, L_block, device=x_block_masked.device)
         ids_shuffle = torch.argsort(noise, dim=1)
         ids_keep_local = ids_shuffle[:, :L_block - num_to_mask_random]
@@ -367,7 +405,6 @@ class MaskedAutoencoderViT(nn.Module):
         final_ids_restore = torch.cat(final_ids_restore_list, dim=0)
 
         return final_x_masked, combined_mask, final_ids_restore
-
 
 
     # def combined_masking(self, x, block_ratio=0.3, random_ratio=0.25, flipped=True, random_offset=False):
@@ -486,11 +523,33 @@ class MaskedAutoencoderViT(nn.Module):
 
 
     def forward_encoder_dynamic(self, x, mask_mode='random',
-                            mask_ratio=0.75, block_ratio=0.5, block_ratio_w=0.5, random_ratio=0.25,
-                            flipped=True, random_offset=False):
+                                mask_ratio=0.75, block_ratio=0.5, block_ratio_w=0.5, random_ratio=0.25,
+                                flipped=True, random_offset=False):
         """
-        A dynamic encoder that calls the appropriate masking strategy 
-        based on mask_mode: ['random', 'block', 'combined'].
+        A dynamic encoder that chooses a masking strategy based on mask_mode.
+
+        mask_mode in ['random', 'block', 'block_bbox', 'combined'].
+
+        - random: random_masking
+        - block: block_masking
+        - block_bbox: block_masking_bbox_bottom
+        - combined: combined_masking
+
+        The chosen masking strategy modifies x to x_masked and returns mask and ids_restore.
+        Then passes x_masked through encoder (frozen + new blocks).
+
+        Args:
+            x: [N, 3, H, W] input images
+            mask_mode (str): chosen masking mode
+            mask_ratio (float): used if random mode
+            block_ratio (float): fraction for block-based methods
+            block_ratio_w (float): horizontal fraction if needed (block_bbox mode)
+            random_ratio (float): fraction for combined random portion
+            flipped (bool): if True, treat row=0 as bottom
+            random_offset (bool): if True, random vertical offset in block modes.
+
+        Returns:
+            x_masked, mask, ids_restore
         """
         x = self.patch_embed(x)
         x = x + self.pos_embed[:, 1:, :]
@@ -503,13 +562,12 @@ class MaskedAutoencoderViT(nn.Module):
             )
         elif mask_mode == 'block_bbox':
             x_masked, mask, ids_restore = self.block_masking_bbox_bottom(
-                x, block_ratio_h=block_ratio, block_ratio_w=block_ratio_w, horizontal_random_offset=True
+                x, block_ratio=block_ratio, horizontal_random_offset=True, flipped=flipped
             )
         elif mask_mode == 'combined':
-            # Use block + random
             x_masked, mask, ids_restore = self.combined_masking(
                 x, block_ratio=block_ratio, random_ratio=random_ratio,
-                flipped=flipped, random_offset=random_offset
+                flipped=flipped, horizontal_random_offset=True, random_offset=random_offset
             )
         else:
             raise ValueError(f"Unknown mask_mode: {mask_mode}")
@@ -518,10 +576,11 @@ class MaskedAutoencoderViT(nn.Module):
         cls_tokens = cls_token.expand(x_masked.shape[0], -1, -1)
         x_masked = torch.cat((cls_tokens, x_masked), dim=1)
 
-        # Frozen blocks
+        # Pass through frozen encoder
         for blk in self.blocks:
             x_masked = blk(x_masked)
-        # Trainable new blocks
+
+        # Pass through new trainable blocks
         for blk in self.new_blocks:
             x_masked = blk(x_masked)
 
@@ -596,21 +655,25 @@ class MaskedAutoencoderViT(nn.Module):
         x = x[:, 1:, :]  # Remove class token
         return x
 
-    def forward_loss(self, imgs, pred, mask):
-        target = self.patchify(imgs)
 
-        # Instead of MSE:
-        # loss_l2 = (pred - target)**2
-        # Hybrid approach:
-        alpha = 0.5  # weighting between L1 & L2
+    def forward_loss(self, imgs, pred, mask):
+        """
+        Compute reconstruction loss using a hybrid L1+L2 approach.
+
+        Args:
+            imgs: original images [N, 3, H, W]
+            pred: predicted patches [N, L, patch_size^2 * 3]
+            mask: binary mask [N, L], 1 means masked patch.
+
+        Returns:
+            loss: scalar loss value
+        """
+        target = self.patchify(imgs)
+        alpha = 0.5
         loss_l2 = (pred - target)**2
         loss_l1 = torch.abs(pred - target)
-
-        # Weighted sum
         loss_combined = alpha * loss_l1 + (1 - alpha) * loss_l2
-        loss_per_patch = loss_combined.mean(dim=-1)  # average over patch dimension
-
-        # only masked patches
+        loss_per_patch = loss_combined.mean(dim=-1)
         loss = (loss_per_patch * mask).sum() / mask.sum()
         return loss
 
@@ -631,6 +694,7 @@ class MaskedAutoencoderViT(nn.Module):
     #     loss = (loss * mask).sum() / mask.sum()
     #     return loss
     
+    
     def forward(self, imgs,
                 mask_mode='block_bbox',
                 mask_ratio=0.75,
@@ -639,6 +703,26 @@ class MaskedAutoencoderViT(nn.Module):
                 random_ratio=0.25,
                 flipped=True,
                 random_offset=False):
+        """
+        Full forward pass:
+        1) Apply chosen masking strategy.
+        2) Encode masked input.
+        3) Decode to reconstruct masked patches.
+        4) Compute loss.
+
+        Args:
+            imgs: [N, 3, H, W]
+            mask_mode: 'random', 'block', 'block_bbox', 'combined'
+            mask_ratio: only relevant for random mode
+            block_ratio: fraction for block-based methods
+            block_ratio_w: horizontal fraction if needed
+            random_ratio: fraction for random portion in combined mode
+            flipped: if True, row=0 is bottom visually
+            random_offset: if True, random vertical offset in block modes
+
+        Returns:
+            loss, pred, mask
+        """
         latent, mask, ids_restore = self.forward_encoder_dynamic(
             x=imgs,
             mask_mode=mask_mode,
