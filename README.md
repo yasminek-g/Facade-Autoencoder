@@ -6,7 +6,7 @@ We provide two implementations:
 
 -Custom MAE: A fully customizable implementation of the MAE architecture, designed to explore various model components, such as masking strategies (block-based masking), patch sizes, embedding dimensions, and loss functions (MSE + Perceptual Loss).
 
--Pretrained MAE: Fine-tuning the official MAE model from Facebook AI Research on a specific dataset of architectural facades, using random masking.
+-Pretrained MAE: Fine-tuning the official MAE model from Facebook AI Research on a specific dataset of architectural facades.
 
 ## **Custom Masked Autoencoder**
 
@@ -14,7 +14,7 @@ This project implements a **Custom Masked Autoencoder (MAE)** from scratch for i
 
 ---
 
-## **Overview**
+### **Overview**
 
 This project explores training a custom **Masked Autoencoder (MAE)** for facade image reconstruction. Key highlights include:
 - Training the MAE from scratch with **Masked MSE Loss** and **Perceptual Loss**.
@@ -26,7 +26,7 @@ The goal is to reconstruct high-quality images from masked inputs and analyze th
 
 ---
 
-## **Project Structure**
+### **Project Structure**
 
 ```plaintext
 project/
@@ -45,7 +45,7 @@ project/
 
 ---
 
-## **Features**
+### **Features**
 
 1. **Custom Masked Autoencoder (MAE)**:
    - Implemented with an encoder-decoder architecture.
@@ -62,6 +62,9 @@ project/
    - Visualization of training progress, losses, and image reconstructions using **Weights & Biases (W&B)**.
 
 ---
+## **Pre-trained MAE**
+
+...
 
 ## **References**
 
